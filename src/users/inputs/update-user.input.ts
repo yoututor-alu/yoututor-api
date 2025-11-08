@@ -11,17 +11,11 @@ export class UpdateUserInput extends OmitType(PartialType(CreateUserInput), [
   bio?: string;
 
   @Field({ nullable: true })
-  oldPin?: string;
+  systemPrompt?: string;
 
   @Field(() => Boolean, { nullable: true })
   shouldRemoveAvatar?: boolean;
 
   @Field(() => FileInput, { nullable: true })
   avatarInput?: FileInput;
-
-  @Field(() => [String], { nullable: true })
-  skillsOfferred?: string[];
-
-  @Field(() => [String], { nullable: true })
-  skillsWanted?: string[];
 }

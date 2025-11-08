@@ -78,6 +78,10 @@ export class User extends Document {
   @Prop({ required: false })
   avatar?: string;
 
+  @Field({ nullable: true })
+  @Prop({ required: false })
+  systemPrompt?: string;
+
   @Field(() => UserType)
   @Prop({ enum: UserType, default: UserType.User })
   type: UserType;

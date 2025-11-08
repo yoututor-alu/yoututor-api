@@ -21,12 +21,6 @@ export class UserResolver {
   }
 
   @UseGuards(Guard)
-  @Query(() => User)
-  async getStatistics(@CurrentUser() user: User) {
-    return await this.userService.getStatistics(user);
-  }
-
-  @UseGuards(Guard)
   @Mutation(() => User)
   async updateUser(
     @CurrentUser() user: User,

@@ -87,7 +87,7 @@ export class SessionService {
           role: MessageRole.User
         });
 
-        const content = await this.generateResponse(session);
+        const content = await this.generateResponse(session, user);
 
         session.messages.push({
           content,
@@ -108,7 +108,7 @@ export class SessionService {
     });
   }
 
-  async generateResponse(session: Session) {
+  async generateResponse(session: Session, user: User) {
     try {
       const transcript = session.transcript || "";
 
@@ -119,6 +119,8 @@ export class SessionService {
         .join("\n");
 
       const prompt = `You are YouTutor, an AI tutor that helps users understand YouTube videos. You can only answer questions based on the video transcript provided below.
+
+${user.bio ? `User Bio:\n${user.bio}\n` : ""}
 
 Video Transcript:
 ${transcript}
@@ -131,6 +133,7 @@ Instructions:
 3. Be helpful, clear, and educational in your responses
 4. Reference specific parts of the transcript when relevant to support your answers
 5. Respond to the most recent user message in the conversation history above
+${user.systemPrompt ? "6. Follow the user's system prompt instructions above when crafting your response" : ""}
 
 Your response:`;
 
