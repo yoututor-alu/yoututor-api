@@ -1,7 +1,8 @@
-import { Field } from "@nestjs/graphql";
+import { Field, ObjectType } from "@nestjs/graphql";
 import GraphQLObjectId from "graphql-type-object-id";
 import { Types } from "mongoose";
 
+@ObjectType()
 export class SubDocument {
   declare private _id?: Types.ObjectId;
 

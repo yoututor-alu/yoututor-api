@@ -31,18 +31,18 @@ export class Session extends Document {
   @Field(() => Boolean)
   @Prop({ type: Boolean, required: true, default: false })
   isDeleted: boolean;
+
+  @Field({ nullable: true })
+  channel?: string;
+
+  @Field({ nullable: true })
+  publishedAt?: string;
+
+  @Field({ nullable: true })
+  summary?: string;
 }
 
 export const SessionSchema = SchemaFactory.createForClass(Session);
-
-// //Checking for unique keys when you have multiple indexes
-// SessionSchema.post("save", function (error, doc, next) {
-//   if (error?.name === "MongoServerError" && (error as any)?.code === 11000) {
-//     return next(new ConflictException("You have had a chat with this"));
-//   }
-
-//   next();
-// } as ErrorHandlingMiddlewareFunction<Session>);
 
 export const SessionModel: ModelDefinition = {
   name: Session.name,

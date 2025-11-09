@@ -5,15 +5,19 @@ import {
   InternalServerErrorException
 } from "@nestjs/common";
 import { google } from "googleapis";
-import { YoutubeTranscript } from "@danielxceron/youtube-transcript";
 import {
-  YoutubeTranscriptItem,
   YoutubeVideoData,
   YoutubeVideoMetadata
 } from "../interfaces/youtube.interface";
 import { stringify } from "../../../../utilities/stringify-json";
+import { config } from "../../../../config";
+import { Supadata } from "@supadata/js";
 
-const api = google.youtube({ version: "v3", auth: "" });
+const api = google.youtube({ version: "v3", auth: config.google.apiKey });
+
+const supadata = new Supadata({
+  apiKey: config.supadata.apiKey || ""
+});
 
 @Injectable()
 export class YoutubeService {
@@ -32,12 +36,9 @@ export class YoutubeService {
         this.getVideoTranscript(videoId)
       ]);
 
-      const transcriptText = transcript.map(item => item.text).join(" ");
-
       return {
         metadata,
-        transcript,
-        transcriptText
+        transcript
       };
     } catch (error) {
       this.logger.error(
@@ -48,9 +49,7 @@ export class YoutubeService {
     }
   }
 
-  private async getVideoMetadata(
-    videoId: string
-  ): Promise<YoutubeVideoMetadata> {
+  async getVideoMetadata(videoId: string): Promise<YoutubeVideoMetadata> {
     try {
       const response = await api.videos.list({
         id: [videoId],
@@ -69,6 +68,7 @@ export class YoutubeService {
 
       return {
         videoId: videoId,
+        tags: snippet?.tags || [],
         title: snippet?.title || "",
         description: snippet?.description || "",
         publishedAt: snippet?.publishedAt || "",
@@ -89,17 +89,41 @@ export class YoutubeService {
     }
   }
 
-  private async getVideoTranscript(
-    videoId: string
-  ): Promise<YoutubeTranscriptItem[]> {
-    try {
-      const transcriptData = await YoutubeTranscript.fetchTranscript(videoId);
+  private formatTimestamp(milliseconds: number): string {
+    const totalSeconds = Math.floor(milliseconds / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
 
-      return transcriptData.map(item => ({
-        text: item.text,
-        offset: item.offset,
-        duration: item.duration
-      }));
+    if (hours > 0) {
+      return `[${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}]`;
+    }
+    return `[${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}]`;
+  }
+
+  async getVideoTranscript(videoId: string): Promise<string> {
+    try {
+      // Get transcript from any supported platform (YouTube, TikTok, Instagram, X (Twitter)) or file
+      const transcriptResult = await supadata.transcript({
+        url: `https://www.youtube.com/watch?v=${videoId}`,
+        lang: "en", // optional
+        text: false,
+        mode: "auto" // optional: 'native', 'auto', or 'generate'
+      });
+
+      const content = (transcriptResult as any)?.content;
+
+      if (!content || !Array.isArray(content)) {
+        throw new InternalServerErrorException("Invalid transcript format");
+      }
+
+      // Format each chunk with timestamp
+      const formattedChunks = content.map((chunk: any) => {
+        const timestamp = this.formatTimestamp(chunk.offset || 0);
+        return `${timestamp} ${chunk.text || ""}`;
+      });
+
+      return formattedChunks.join(" ");
     } catch (error) {
       this.logger.error(
         `Error fetching video transcript for ${videoId}:`,

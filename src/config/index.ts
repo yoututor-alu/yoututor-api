@@ -22,10 +22,13 @@ export const config = {
   environment: {
     state: isProduction ? "production" : "development"
   },
+  google: {
+    apiKey: process.env.GOOGLE_API_KEY
+  },
   tokenization: {
     secret: process.env.JWT_SECRET || ""
   },
-  gemini: {
-    apiKey: ""
+  supadata: {
+    apiKey: process.env.SUPADATA_API_KEY
   }
 };

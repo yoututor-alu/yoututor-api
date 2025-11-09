@@ -34,20 +34,43 @@ export class SessionService {
         input.user = user._id;
 
         const [session] = await this.sessionRepository.create([input], {
-          session: txSession
+          session: txSession,
+          validateBeforeSave: false
         });
 
-        const videoData = await this.youtubeService.getVideoData(session.video);
+        const metadata = await this.youtubeService.getVideoMetadata(
+          session.video
+        );
 
-        session.transcript = videoData.transcriptText;
+        const existingSessions = await this.sessionRepository.find({
+          video: input.video
+        });
 
-        if (!session.name) {
-          session.name = videoData.metadata.title;
+        if (existingSessions.length) {
+          session.transcript = existingSessions[0].transcript;
+
+          if (!session.name) {
+            session.name = `(${existingSessions.length + 1}) ${existingSessions[0].name || "Untitled"}`;
+          }
+        } else {
+          session.transcript = await this.youtubeService.getVideoTranscript(
+            session.video
+          );
+
+          if (!session.name) {
+            session.name = metadata.title;
+          }
         }
 
         await session.save({ session: txSession });
 
         await txSession.commitTransaction();
+
+        session.channel = metadata.channelTitle;
+
+        session.publishedAt = metadata.publishedAt;
+
+        session.summary = metadata.description;
 
         return session;
       } catch (error) {
@@ -61,13 +84,11 @@ export class SessionService {
   async sendMessage(input: SendMessageInput, user: User) {
     return await inTransaction(this.connection, async txSession => {
       try {
-        const session = await this.sessionRepository
-          .findOne({
-            _id: input.id,
-            user: user._id,
-            isDeleted: false
-          })
-          .session(txSession);
+        const session = await this.sessionRepository.findOne({
+          _id: input.id,
+          user: user._id,
+          isDeleted: false
+        });
 
         if (!session) {
           throw new BadRequestException(
@@ -131,7 +152,7 @@ Instructions:
 1. Answer questions based solely on the information in the video transcript above. Do not use any external knowledge.
 2. If a question is asked that cannot be answered using the transcript, you must clearly state: "This question is not covered in the video transcript. I can only answer questions based on the content of this video."
 3. Be helpful, clear, and educational in your responses
-4. Reference specific parts of the transcript when relevant to support your answers
+4. When referencing specific parts of the transcript, you MUST use timestamps in one of these formats only: Single timestamps: [HH:MM:SS] or [MM:SS] AND Ranges: [HH:MM:SS-HH:MM:SS] or [MM:SS-MM:SS]
 5. Respond to the most recent user message in the conversation history above
 ${user.systemPrompt ? "6. Follow the user's system prompt instructions above when crafting your response" : ""}
 
@@ -155,6 +176,16 @@ Your response:`;
         throw new NotFoundException();
       }
 
+      const metadata = await this.youtubeService.getVideoMetadata(
+        session.video
+      );
+
+      session.channel = metadata.channelTitle;
+
+      session.publishedAt = metadata.publishedAt;
+
+      session.summary = metadata.description;
+
       return session;
     } catch (error) {
       throw new InternalServerErrorException(error);
@@ -163,13 +194,34 @@ Your response:`;
 
   async getSessions(filter: FilterInput, user: User) {
     try {
-      return await this.paginationService.paginate(this.sessionRepository, {
-        filter,
-        user: user._id,
-        isDeleted: false
-      });
+      const sessions = await this.paginationService.paginate(
+        this.sessionRepository,
+        {
+          filter,
+          user: user._id,
+          isDeleted: false
+        }
+      );
+
+      sessions.list = await Promise.all(
+        sessions.list.map(async session => {
+          const metadata = await this.youtubeService.getVideoMetadata(
+            session.video
+          );
+
+          session.channel = metadata.channelTitle;
+
+          session.publishedAt = metadata.publishedAt;
+
+          session.summary = metadata.description;
+
+          return session;
+        })
+      );
+
+      return sessions;
     } catch (error) {
-      throw new InternalServerErrorException();
+      throw new InternalServerErrorException(error);
     }
   }
 }

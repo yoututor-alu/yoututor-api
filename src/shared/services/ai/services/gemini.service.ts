@@ -8,19 +8,25 @@ const api = axios.create({
 
 @Injectable()
 export class GeminiService {
-  public readonly model = "gemini-1.5-flash";
+  public readonly model = "gemini-2.0-flash"; // confirm exact model name from ListModels
 
   async generate(prompt: string): Promise<string> {
     try {
-      const response = await api.post(
-        `/${this.model}:generateContent?key=${config.gemini.apiKey}`,
-        {
-          contents: [{ parts: [{ text: prompt }] }]
-        }
-      );
+      const path = `/${this.model}:generateContent?key=${config.google.apiKey}`;
+      const body = {
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: prompt }]
+          }
+        ]
+      };
 
-      // Gemini returns candidates[0].content.parts[0].text
-      return response.data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      const response = await api.post(path, body);
+
+      const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      return text || "";
     } catch (error: any) {
       console.log({ GEMINI_ERROR: error?.response?.data || error });
 
