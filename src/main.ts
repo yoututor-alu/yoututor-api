@@ -4,8 +4,8 @@ import { config } from "./config";
 import { json, urlencoded } from "express";
 
 const origins = {
-  production: [""],
-  development: ["http://localhost:5173"]
+  production: ["https://alu-yoututor.web.app"],
+  development: ["http://localhost:5173", "https://alu-yoututor.web.app"]
 };
 
 async function bootstrap() {
